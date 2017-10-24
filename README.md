@@ -58,11 +58,12 @@ Vagrant.configure("2") do |config|
    
       vb.memory = "2048"
     end
+    config.vm.provision :shell, path: "install_ansible.sh"
     config.vm.provision "ansible" do |p|
       p.playbook = "jenkins_playbook.yml"
       p.verbose        = true
     end
-    config.vm.network "forwarded_port", guest: 8080, host: 8080, id: "jenkins"
+    config.vm.network "forwarded_port", guest: 8888, host: 8888, id: "jenkins"
 end
 ```
 Boot up VM and Jenkins in it using Vagrant
@@ -72,5 +73,5 @@ $ vagrant up
 ```
 
 Once The VM has finished configuring with Jenkins you may connect to it using Jenkins WebUI 
-http://localhost:8080/
+http://localhost:8888/
 
