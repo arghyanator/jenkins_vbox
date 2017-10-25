@@ -95,6 +95,9 @@ $ vagrant up jenkinsmaster
 Once The VM has finished configuring with Jenkins you may connect to it using Jenkins WebUI 
 http://localhost:8888/ and finish setup of Jenkins Master
 
+Jenkins Setting up after initial admin password is provided
+-----------------------------------------------------------
+![jenkins master configuring](https://github.com/arghyanator/jenkins_vbox/blob/master/jenkins_setup.png)
 
 Boot up Jenkins slave VM using Vagrant
 ---------------------------------------
