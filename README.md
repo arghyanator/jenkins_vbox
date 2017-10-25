@@ -47,8 +47,8 @@ $ /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/inst
 $ brew install ansible
 ```
 
-Modify Vagrantfile to add ansible:
-----------------------------------
+Modify Vagrantfile to add ansible (For Jenkins Master):
+-------------------------------------------------------
 ```
 $ egrep -v "^$|^#| #" Vagrantfile 
 Vagrant.configure("2") do |config|
@@ -84,12 +84,20 @@ Vagrant.configure("2") do |config|
 end
 
 ```
-Boot up VM and Jenkins in it using Vagrant
--------------------------------------------
+NOTE: For Jenkins Slave VM - we are using Shell "provisioner"
+-------------------------------------------------------------
+Boot up VM and Install Jenkins in it using Vagrant
+--------------------------------------------------
 ```
-$ vagrant up
+$ vagrant up jenkinsmaster
 ```
 
 Once The VM has finished configuring with Jenkins you may connect to it using Jenkins WebUI 
-http://localhost:8888/
+http://localhost:8888/ and finish setup of Jenkins Master
 
+
+Boot up Jenkins slave VM using Vagrant
+---------------------------------------
+```
+$ vagrant up jenkinsslave
+```

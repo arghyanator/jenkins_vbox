@@ -74,9 +74,12 @@ Vagrant.configure("2") do |config|
         slave.vm.box = "ubuntu/xenial64"
         slave.vm.hostname = "jenkinsslave"
         slave.vm.network :private_network, ip: "192.168.56.102"
-        slave.vm.provision :shell, inline: "apt-get update"
-        slave.vm.provision :shell, inline: "echo 'in slave VM'"
-
+        slave.vm.provision :shell, inline: "sudo apt-get update"
+        slave.vm.provision :shell, inline: "sudo add-apt-repository ppa:openjdk-r/ppa"
+        slave.vm.provision :shell, inline: "sudo apt-get -y install openjdk-8-jre"
+        slave.vm.provision :shell, inline: "sudo apt-get -y install openjdk-8-jdk"
+        slave.vm.provision :shell, inline: "sudo echo \"export JAVA_HOME=/usr/lib/jvm/jre-1.8.0-openjdk\" >>/etc/profile"
+        slave.vm.provision :shell, inline: "sudo echo \"export JRE_HOME=/usr/lib/jvm/java-8-openjdk-amd64/jre\" >>/etc/profile"
         config.vm.provider "virtualbox" do |vbs|
           vbs.gui = true
           # Customize the amount of memory on the VM:
