@@ -52,19 +52,37 @@ Modify Vagrantfile to add ansible:
 ```
 $ egrep -v "^$|^#| #" Vagrantfile 
 Vagrant.configure("2") do |config|
-  config.vm.box = "ubuntu/xenial64"
-    config.vm.provider "virtualbox" do |vb|
-      vb.gui = true
-   
-      vb.memory = "2048"
-    end
-    config.vm.provision :shell, path: "install_ansible.sh"
-    config.vm.provision "ansible" do |p|
-      p.playbook = "jenkins_playbook.yml"
-      p.verbose        = true
-    end
-    config.vm.network "forwarded_port", guest: 8888, host: 8888, id: "jenkins"
+  
+      config.vm.define :jenkinsmaster do |jenkins|
+        jenkins.vm.box = "ubuntu/xenial64"
+        jenkins.vm.hostname = "jenkinsmaster"
+        jenkins.vm.network :private_network, ip: "192.168.56.101"
+        jenkins.vm.network "forwarded_port", guest: 8888, host: 8888, id: "jenkins"
+        jenkins.vm.provision :shell, path: "install_ansible.sh"
+        jenkins.vm.provision "ansible" do |p|
+          p.playbook = "jenkins_playbook.yml"
+          p.verbose        = true
+        end
+        
+        config.vm.provider "virtualbox" do |vb|
+          vb.gui = true
+          vb.memory = "2048"
+        end
+      end
+      
+      config.vm.define :jenkinsslave do |slave|
+        slave.vm.box = "ubuntu/xenial64"
+        slave.vm.hostname = "jenkinsslave"
+        slave.vm.network :private_network, ip: "192.168.56.102"
+        slave.vm.provision :shell, inline: "apt-get update"
+        slave.vm.provision :shell, inline: "echo 'in slave VM'"
+        config.vm.provider "virtualbox" do |vbs|
+          vbs.gui = true
+          vbs.memory = "2048"
+        end
+      end
 end
+
 ```
 Boot up VM and Jenkins in it using Vagrant
 -------------------------------------------
