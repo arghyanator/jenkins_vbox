@@ -4,7 +4,6 @@
   vars:
     servernm: "{{ inventory_hostname }}"
     randompass: "{{ lookup('password', '/dev/null length=15 chars=ascii_letters') }}"
-    jenkins_apitoken: "{{ lookup('file', '/root/.root_apitoken') }}"
   tasks:
     - set_fact:
         jenkins_adminpass: "{{ randompass }}"
@@ -95,7 +94,7 @@
 
     - name: Create NGINX config file for Jenkins with SSL
       template: 
-        src=/root/nginx_jenkins
+        src=/vagrant/nginx_jenkins
         dest=/etc/nginx/sites-available/jenkins
 
     - name: Create Nginx config symbolic link to Nginx
@@ -114,7 +113,7 @@
  
     - name: Create Jenkins groovy file for auto-unlock during setup
       template: 
-        src=/root/basic_security.groovy
+        src=/vagrant/basic_security.groovy
         dest=/var/lib/jenkins/init.groovy.d/basic_security.groovy
       register: jenkins_configured
 
