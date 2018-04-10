@@ -1,7 +1,20 @@
 ---
 - hosts: all
   become: true
+  vars:
+    servernm: "{{ inventory_hostname }}"
+    randompass: "{{ lookup('password', '/dev/null length=15 chars=ascii_letters') }}"
+    jenkins_apitoken: "{{ lookup('file', '/root/.root_apitoken') }}"
   tasks:
+    - set_fact:
+        jenkins_adminpass: "{{ randompass }}"
+
+    - set_fact:
+        server_hostname: "{{ servernm }}"
+
+    - set_fact:
+        servername: "{{ servernm }}"
+
     - name: update apt cache
       apt: update_cache=yes
 
@@ -13,9 +26,9 @@
     - apt_repository:
         repo: 'ppa:openjdk-r/ppa'
 
-    - name: Update repositories cache and install "Java OpenJDK7" package
+    - name: Update repositories cache and install "Java OpenJDK8" package
       apt:
-        name: openjdk-7-jdk
+        name: openjdk-8-jdk
         update_cache: yes
 
     - apt_repository:
@@ -31,6 +44,7 @@
       apt:
         name: jenkins
         update_cache: yes
+      register: jenkins_installed
 
     - name: Update repositories cache and install "Nginx" package
       apt:
@@ -38,13 +52,51 @@
         state: latest
         update_cache: yes
 
+    - name: Update repositories cache and install python pip
+      apt:
+        name: python-pip
+        update_cache: yes
+      register: pip_installed
+    
+    - name: Ensure python OpenSSL dependencies are installed.
+      pip:
+        name: pyOpenSSL
+        state: present
+
+    - name: Ensure directory exists for local self-signed TLS certs
+      file:
+        path: /etc/letsencrypt/live/{{ server_hostname }}
+        state: directory
+    
+    - name: Generate an OpenSSL private key
+      openssl_privatekey:
+        path: /etc/letsencrypt/live/{{ server_hostname }}/privkey.pem
+    
+    - name: Generate an OpenSSL CSR
+      openssl_csr:
+        path: /etc/ssl/private/{{ server_hostname }}.csr
+        privatekey_path: /etc/letsencrypt/live/{{ server_hostname }}/privkey.pem
+        common_name: "{{ server_hostname }}"
+    
+    - name: Generate a Self Signed OpenSSL certificate
+      openssl_certificate:
+        path: /etc/letsencrypt/live/{{ server_hostname }}/fullchain.pem
+        privatekey_path: /etc/letsencrypt/live/{{ server_hostname }}/privkey.pem
+        csr_path: /etc/ssl/private/{{ server_hostname }}.csr
+        provider: selfsigned
+
+    - debug:
+        msg: "{{ jenkins_adminpass }}"
+
     - name: delete default nginx configs
       file: 
         path: "/etc/nginx/sites-enabled/default"
         state: absent
 
-    - name: Copy files from foo to bar
-      copy: remote_src=True src=/vagrant/nginx_jenkins dest=/etc/nginx/sites-available/jenkins
+    - name: Create NGINX config file for Jenkins with SSL
+      template: 
+        src=/root/nginx_jenkins
+        dest=/etc/nginx/sites-available/jenkins
 
     - name: Create Nginx config symbolic link to Nginx
       file:
@@ -53,13 +105,56 @@
         owner: root
         group: root
         state: link
+      register: nginx_configured
+   
+    - name: Ensure directory exists for groovy file
+      file:
+        path: /var/lib/jenkins/init.groovy.d
+        state: directory
+ 
+    - name: Create Jenkins groovy file for auto-unlock during setup
+      template: 
+        src=/root/basic_security.groovy
+        dest=/var/lib/jenkins/init.groovy.d/basic_security.groovy
+      register: jenkins_configured
+
+    - name: Dumping Random generated jenkins admin password to file in /root folder
+      copy:
+        content: "{{ jenkins_adminpass }}"
+        dest: /root/.jenkins_adminpass
 
     - name: restart jenkins service
       systemd:
         state: restarted
         name: jenkins
+      when: jenkins_configured.changed
 
     - name: restart nginx service
       systemd:
         state: restarted
         name: nginx
+      when: nginx_configured.changed
+
+    - pause:
+        seconds: 10
+
+    - name: generate CRUMB
+      command: "curl -k -s -u admin:{{ jenkins_adminpass }} 'https://localhost/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,\":\",//crumb)'" 
+      register: generate_crumb
+      ignore_errors: yes
+
+    - set_fact:
+      jenkins_crumb: "{{ generate_crumb.stdout }}"
+
+    - debug:
+        msg: "{{ generate_crumb.stdout }}"
+
+    - name: Install all recommended Jenkins Plugins
+      command: "curl -k -u admin:{{ jenkins_adminpass }} -s -X POST -d '<jenkins><install plugin=\"git@2.0\" /></jenkins>' --header 'Content-Type: text/xml' -H \"{{ generate_crumb.stdout }}\" https://localhost/pluginManager/installNecessaryPlugins"
+      register: install_alljenkinsplugins
+
+    - name: restart jenkins service
+      systemd:
+        state: restarted
+        name: jenkins
+      when: install_alljenkinsplugins.changed
